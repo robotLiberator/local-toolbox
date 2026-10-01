@@ -14,6 +14,8 @@
       "tags": ["离线", "语音转文字", "中英混说", "口吃去重", "口语整理", "静音保护", "鼠标侧键", "小球", "GitHub", "AI术语纠错"],
       "network_required": false,
       "gpu_required": false,
+      "one_click_launch": true,
+      "local_service": {"required_for": "智能口语整理", "type": "llama.cpp loopback HTTP", "bind": "127.0.0.1 dynamic port", "compliance": "legacy-pending-migration"},
       "release_bytes": 1140548748,
       "verification": ["21 regression tests", "standalone exe ASR/VAD/cleanup/terminology self-test", "Qt UI and XButton2 hook startup", "local cleanup engine health"],
       "local_backup": "E:/创世纪/本地产品备份/本地语音输入-v1.0.1-20261001",
@@ -21,6 +23,26 @@
       "backup_status": "verified",
       "github_release": "https://github.com/robotLiberator/local-toolbox/releases/tag/bubble-dictation-v1.0.1",
       "release_archive_sha256": "330be013ae5d3862e92dab8ec573562ebe03920060dcea6f7bf4a31231eb6fb6"
+    },
+    {
+      "id": "multi-platform-publisher",
+      "name": "多平台分发",
+      "version": "2026.10.01",
+      "version_kind": "toolbox-snapshot",
+      "status": "ready-legacy-service",
+      "platform": "Windows 10/11 x64",
+      "launch": "多平台分发/dist/多平台分发/自媒体一键分发.exe",
+      "source": "多平台分发/source",
+      "documentation": "多平台分发/README.md",
+      "tags": ["自媒体", "视频发布", "多平台分发", "抖音", "视频号", "B站", "小红书", "快手", "定时发布"],
+      "network_required": true,
+      "gpu_required": false,
+      "one_click_launch": true,
+      "local_service": {"required": true, "type": "Flask HTTP", "bind": "127.0.0.1:5409", "compliance": "legacy-pending-migration"},
+      "verification": ["32 offline regression tests", "bundled Python and Chromium smoke test", "privacy-filtered runtime and source", "no real platform publishing performed"],
+      "backup_destination": "https://github.com/robotLiberator/local-toolbox",
+      "backup_status": "pending-upload",
+      "local_backup": "E:/创世纪/本地产品备份/多平台分发-2026.10.01"
     }
   ]
 }

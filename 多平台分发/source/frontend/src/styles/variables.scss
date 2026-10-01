@@ -1,0 +1,54 @@
+// 颜色变量
+$primary-color: #6d5dfc;
+$success-color: #2fb7a3;
+$warning-color: #e39a34;
+$danger-color: #e85f70;
+$info-color: #8c879b;
+
+// 文字颜色
+$text-primary: #292638;
+$text-regular: #5c586c;
+$text-secondary: #908b9d;
+$text-placeholder: #bab5c3;
+
+// 边框颜色
+$border-base: #ddd8e6;
+$border-light: #e7e2ed;
+$border-lighter: #eeeaf2;
+$border-extra-light: #f5f2f7;
+
+// 背景颜色
+$bg-color: #ffffff;
+$bg-color-page: #f7f5f8;
+$bg-color-overlay: #ffffff;
+
+// 字体大小
+$font-size-extra-large: 20px;
+$font-size-large: 18px;
+$font-size-medium: 16px;
+$font-size-base: 14px;
+$font-size-small: 13px;
+$font-size-extra-small: 12px;
+
+// 间距
+$spacing-xs: 4px;
+$spacing-sm: 8px;
+$spacing-md: 16px;
+$spacing-lg: 24px;
+$spacing-xl: 32px;
+
+// 圆角
+$border-radius-base: 8px;
+$border-radius-small: 6px;
+$border-radius-round: 20px;
+$border-radius-circle: 50%;
+
+// 阴影
+$box-shadow-base: 0 8px 24px rgba(56, 45, 76, 0.09), 0 1px 3px rgba(56, 45, 76, 0.05);
+$box-shadow-dark: 0 14px 34px rgba(48, 37, 70, 0.14), 0 2px 8px rgba(48, 37, 70, 0.08);
+$box-shadow-light: 0 6px 22px rgba(56, 45, 76, 0.08);
+
+// 层级
+$z-index-normal: 1;
+$z-index-top: 1000;
+$z-index-popper: 2000;

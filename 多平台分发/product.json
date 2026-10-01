@@ -1,0 +1,36 @@
+{
+  "id": "multi-platform-publisher",
+  "name": "多平台分发",
+  "application_name": "自媒体一键分发",
+  "version": "2026.10.01",
+  "version_kind": "toolbox-snapshot",
+  "platform": "Windows 10/11 x64",
+  "launch": "dist/多平台分发/自媒体一键分发.exe",
+  "source": "source",
+  "original_project": "E:/创世纪/auto-upload",
+  "original_git_head": "054f01ecc8f441f120abba4333cdc73e8f025802",
+  "includes_current_worktree_changes": true,
+  "original_project_modified": false,
+  "one_click_launch": true,
+  "local_service": {
+    "required": true,
+    "type": "Flask HTTP",
+    "bind": "127.0.0.1:5409",
+    "started_by": "exe launcher",
+    "compliance": "legacy-pending-migration"
+  },
+  "privacy": {
+    "personal_config": "excluded; public example used",
+    "accounts_cookies_database_materials_logs": "excluded"
+  },
+  "verification": [
+    "32 offline regression tests passed",
+    "bundled Python imports passed",
+    "Flask frontend test-client route passed; no listener started",
+    "bundled Chromium synthetic-page test passed",
+    "user data directories empty before and after isolated checks",
+    "launcher PE header present; existing compiled launcher retained"
+  ],
+  "real_platform_publishing_tested": false,
+  "backup_status": "pending-upload"
+}

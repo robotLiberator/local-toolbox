@@ -69,7 +69,7 @@ def upload(token, upload_url, path):
                 connection.send(chunk)
                 digest.update(chunk)
                 count += len(chunk)
-                if count // (128 * 1024 * 1024) != (count-len(chunk)) // (128 * 1024 * 1024):
+                if count // (64 * 1024 * 1024) != (count-len(chunk)) // (64 * 1024 * 1024):
                     print(f'Uploaded {count//1024//1024} MiB: {path.name}', flush=True)
         response = connection.getresponse()
         data = json.loads(response.read())
@@ -83,7 +83,7 @@ def upload(token, upload_url, path):
         connection.close()
 
 
-def release(token, tag, files):
+def release(token, tag, files, title=None, body=None):
     route = '/repos/' + OWNER + '/' + REPOSITORY + '/releases'
     try:
         result = request(token, route + '/tags/' + tag)
@@ -91,7 +91,7 @@ def release(token, tag, files):
         if exc.code != 404:
             raise
         result = request(token, route, {'tag_name':tag, 'target_commitish':'main',
-            'name':'本地语音输入 ' + tag, 'body':'完整 Windows x64 离线包及源码备份。请解压整个应用目录，不要只复制 exe。',
+            'name':title or ('本地语音输入 ' + tag), 'body':body or '完整 Windows x64 离线包及源码备份。请解压整个应用目录，不要只复制 exe。',
             'draft':False, 'prerelease':False})
     assets = request(token, route + '/' + str(result['id']) + '/assets')
     for filename in files:
@@ -142,6 +142,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('action', choices=['prepare','release','verify'])
     parser.add_argument('--tag', default='bubble-dictation-v1.0.1')
+    parser.add_argument('--title')
+    parser.add_argument('--body')
     parser.add_argument('files', nargs='*')
     args = parser.parse_args()
     try:
@@ -149,7 +151,7 @@ if __name__ == '__main__':
         if args.action == 'prepare':
             prepare(token)
         elif args.action == 'release':
-            release(token, args.tag, args.files)
+            release(token, args.tag, args.files, args.title, args.body)
         else:
             verify(token, args.tag, args.files)
     except Exception as exc:

@@ -8,3 +8,17 @@
 **/qa/*.json
 *.zip
 **/staging/
+**/release/
+**/node_modules/
+**/.packaging-build/
+**/cookiesFile/
+**/videoFile/
+**/avatars/
+**/db/
+**/logs/
+**/.starter/
+**/qa/
+**/.env
+**/.env.*
+**/*cookie*.json
+**/*token*.json
