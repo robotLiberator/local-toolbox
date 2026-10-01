@@ -6,6 +6,7 @@ import argparse
 import hashlib
 import http.client
 import json
+import re
 from pathlib import Path
 import subprocess
 import urllib.error
@@ -30,6 +31,8 @@ def request(token, route, data=None, method=None):
         headers={'Authorization':'Bearer ' + token, 'Accept':'application/vnd.github+json',
                  'X-GitHub-Api-Version':'2022-11-28', 'User-Agent':'Local-Toolbox-Backup', 'Content-Type':'application/json'})
     with urllib.request.urlopen(req, timeout=60) as response:
+        if response.status == 204:
+            return None
         return json.load(response)
 
 
@@ -110,10 +113,15 @@ def release(token, tag, files, title=None, body=None):
 
 def asset_name(path):
     # GitHub sanitizes Unicode asset filenames; keep a predictable download name.
+    version = re.search(r'-v(\d+\.\d+\.\d+)\.zip$', path.name)
     if 'Windows-x64' in path.name:
-        return 'bubble-dictation-windows-x64-v1.0.1.zip'
+        if not version:
+            raise RuntimeError('Missing version in release archive filename')
+        return 'bubble-dictation-windows-x64-v' + version[1] + '.zip'
     if '源码' in path.name:
-        return 'local-toolbox-source-v1.0.1.zip'
+        if not version:
+            raise RuntimeError('Missing version in source archive filename')
+        return 'local-toolbox-source-v' + version[1] + '.zip'
     if not path.name.isascii():
         raise RuntimeError('Asset name must be ASCII')
     return path.name
@@ -138,10 +146,40 @@ def verify(token, tag, files):
                           'digest':asset['digest'], 'url':asset['browser_download_url']}, ensure_ascii=False), flush=True)
 
 
+def prune_previous_voice_releases(token, tag, files):
+    """Explicit maintenance command: keep verified 1.0.2; remove only 1.0.0/1.0.1."""
+    if tag != 'bubble-dictation-v1.0.2' or len(files) != 2:
+        raise RuntimeError('Cleanup requires the two current 1.0.2 archives')
+    names = {asset_name(Path(filename)) for filename in files}
+    if names != {'bubble-dictation-windows-x64-v1.0.2.zip', 'local-toolbox-source-v1.0.2.zip'}:
+        raise RuntimeError('Unexpected current archive names')
+    prepare(token)
+    verify(token, tag, files)
+    route = '/repos/' + OWNER + '/' + REPOSITORY
+    for old_tag in ('bubble-dictation-v1.0.0', 'bubble-dictation-v1.0.1'):
+        try:
+            old = request(token, route + '/releases/tags/' + old_tag)
+        except urllib.error.HTTPError as exc:
+            if exc.code != 404:
+                raise
+        else:
+            if old['tag_name'] != old_tag:
+                raise RuntimeError('Release identity mismatch')
+            request(token, route + '/releases/' + str(old['id']), method='DELETE')
+            print('Deleted previous voice release and assets: ' + old_tag, flush=True)
+        try:
+            request(token, route + '/git/refs/tags/' + old_tag, method='DELETE')
+        except urllib.error.HTTPError as exc:
+            if exc.code != 404:
+                raise
+        else:
+            print('Deleted previous voice tag: ' + old_tag, flush=True)
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('action', choices=['prepare','release','verify'])
-    parser.add_argument('--tag', default='bubble-dictation-v1.0.1')
+    parser.add_argument('action', choices=['prepare','release','verify','prune-previous-voice'])
+    parser.add_argument('--tag', default='bubble-dictation-v1.0.2')
     parser.add_argument('--title')
     parser.add_argument('--body')
     parser.add_argument('files', nargs='*')
@@ -152,8 +190,10 @@ if __name__ == '__main__':
             prepare(token)
         elif args.action == 'release':
             release(token, args.tag, args.files, args.title, args.body)
-        else:
+        elif args.action == 'verify':
             verify(token, args.tag, args.files)
+        else:
+            prune_previous_voice_releases(token, args.tag, args.files)
     except Exception as exc:
         # Do not print response bodies, credentials, request objects or tracebacks.
         print('Backup failed: ' + type(exc).__name__ + (' HTTP ' + str(exc.code) if isinstance(exc, urllib.error.HTTPError) else ''), flush=True)
