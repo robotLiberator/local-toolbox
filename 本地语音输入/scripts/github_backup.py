@@ -168,11 +168,12 @@ def prune_previous_voice_releases(token, tag, files):
             request(token, route + '/releases/' + str(old['id']), method='DELETE')
             print('Deleted previous voice release and assets: ' + old_tag, flush=True)
         try:
-            request(token, route + '/git/refs/tags/' + old_tag, method='DELETE')
+            request(token, route + '/git/ref/tags/' + old_tag)
         except urllib.error.HTTPError as exc:
             if exc.code != 404:
                 raise
         else:
+            request(token, route + '/git/refs/tags/' + old_tag, method='DELETE')
             print('Deleted previous voice tag: ' + old_tag, flush=True)
 
 
