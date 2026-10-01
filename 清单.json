@@ -15,7 +15,7 @@
       "network_required": false,
       "gpu_required": false,
       "release_bytes": 1140548748,
-      "verification": ["18 regression tests", "standalone exe ASR/VAD/cleanup self-test", "Qt UI and XButton2 hook startup", "local cleanup engine health"],
+      "verification": ["21 regression tests", "standalone exe ASR/VAD/cleanup/terminology self-test", "Qt UI and XButton2 hook startup", "local cleanup engine health"],
       "local_backup": "E:/创世纪/本地产品备份/本地语音输入-v1.0.1-20261001",
       "backup_destination": "https://github.com/robotLiberator/local-toolbox",
       "backup_status": "pending-upload-verification"

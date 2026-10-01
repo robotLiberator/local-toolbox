@@ -7,6 +7,7 @@ import numpy as np
 
 from app import DictationApp, OFFLINE, read_wav
 from speech_gate import RATE, SpeechGate
+from local_cleanup import CleanupResult
 
 
 class SpeechGateTests(unittest.TestCase):
@@ -45,6 +46,7 @@ class SpeechGateTests(unittest.TestCase):
         app.punctuation = Mock()
         app.cleaner = Mock()
         app.smart_cleanup_for_recording = True
+        app.terminology_for_recording = True
         app.speech_gate = self.gate
         app.audio_queue = queue.Queue()
         app.audio_queue.put(samples)
@@ -82,6 +84,38 @@ class SpeechGateTests(unittest.TestCase):
         app.show_text.assert_not_called()
         app.paste_to_target.assert_not_called()
         self.assertEqual(app.last_result, '上一条有效结果')
+
+    def term_worker(self, smart=True, terms=True):
+        app = self.make_worker(self.speech)
+        app.smart_cleanup_for_recording = smart
+        app.terminology_for_recording = terms
+        app.offline.create_stream.return_value = SimpleNamespace(
+            accept_waveform=Mock(), result=SimpleNamespace(text='把代码上传到 get up。'))
+        app.punctuation.add_punctuation.side_effect = lambda text: text
+        app.cleaner.clean.side_effect = lambda text: CleanupResult(text, '已整理')
+        return app
+
+    def test_terms_before_cleanup_original_preserved(self):
+        app = self.term_worker()
+        app.recognition_worker()
+        app.cleaner.clean.assert_called_once_with('把代码上传到 GitHub。')
+        kind, (raw, final, status) = app.events.get_nowait()
+        self.assertEqual(kind, 'transcript')
+        self.assertEqual(raw, '把代码上传到 get up。')
+        self.assertEqual(final, '把代码上传到 GitHub。')
+        self.assertIn('已修正术语', status)
+
+    def test_terms_work_without_smart_cleanup(self):
+        app = self.term_worker(smart=False)
+        app.recognition_worker()
+        self.assertEqual(app.events.get_nowait()[1][1], '把代码上传到 GitHub。')
+        app.cleaner.clean.assert_not_called()
+
+    def test_terms_can_be_disabled(self):
+        app = self.term_worker(terms=False)
+        app.recognition_worker()
+        app.cleaner.clean.assert_called_once_with('把代码上传到 get up。')
+        self.assertEqual(app.events.get_nowait()[1][1], '把代码上传到 get up。')
 
 
 if __name__ == '__main__':
