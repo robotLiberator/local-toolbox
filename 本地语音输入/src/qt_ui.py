@@ -2,12 +2,13 @@
 import math
 import queue
 import time
+import threading
 from types import SimpleNamespace
 
 import pyperclip
 from PySide6.QtCore import QPoint, QPointF, QRectF, Qt, QTimer, Signal, QUrl
-from PySide6.QtGui import QColor, QFont, QPainter, QPainterPath, QPen, QDesktopServices
-from PySide6.QtWidgets import QApplication, QMenu, QPlainTextEdit, QWidget
+from PySide6.QtGui import QColor, QFont, QPainter, QPainterPath, QPen, QDesktopServices, QIcon, QPixmap
+from PySide6.QtWidgets import QApplication, QMenu, QPlainTextEdit, QWidget, QSystemTrayIcon
 
 from app import DictationApp, HOTKEY, ROOT, build_recognizers, keyboard
 from local_cleanup import LocalCleaner, load_enabled
@@ -43,7 +44,7 @@ class Surface(QWidget):
         if event.button() == Qt.MouseButton.LeftButton:
             self.owner.on_press(self.event_info(event))
         elif event.button() == Qt.MouseButton.RightButton:
-            self.owner.menu.popup(event.globalPosition().toPoint())
+            self.owner.right_click()
 
     def mouseMoveEvent(self, event):
         if event.buttons() & Qt.MouseButton.LeftButton:
@@ -67,6 +68,8 @@ class SmoothDictationApp(DictationApp):
         self.application = QApplication.instance() or QApplication([])
         self.events = queue.Queue()
         self.audio_queue = queue.Queue()
+        self.session = None
+        self.recognition_lock = threading.Lock()
         self.recording = self.processing = self.expanded = False
         self.input_stream = None
         self.target_window = self.last_external_window = 0
@@ -129,6 +132,24 @@ class SmoothDictationApp(DictationApp):
         self.menu.addSeparator()
         self.menu.addAction('本地语音输入 ' + VERSION).setEnabled(False)
         self.menu.addAction('退出', self.quit_app)
+        self.menu.addAction('取消本次录音 / 整理', lambda: self.cancel_recording())
+        icon = QPixmap(64, 64)
+        icon.fill(Qt.GlobalColor.transparent)
+        painter = QPainter(icon)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(QColor('#fff0b5'))
+        painter.drawEllipse(QRectF(2, 2, 60, 60))
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.setPen(QPen(QColor('#514b41'), 3))
+        painter.drawRoundedRect(QRectF(26, 14, 12, 24), 6, 6)
+        painter.drawArc(QRectF(20, 24, 24, 24), 180 * 16, 180 * 16)
+        painter.drawLine(32, 48, 32, 54)
+        painter.end()
+        self.tray = QSystemTrayIcon(QIcon(icon), self.root)
+        self.tray.setToolTip('本地语音输入：左键小球开始／结束，右键小球取消')
+        self.tray.setContextMenu(self.menu)
+        self.tray.show()
         self.hotkeys = keyboard.GlobalHotKeys({HOTKEY: lambda: self.events.put(('toggle', None))})
         self.hotkeys.start()
         self.start_mouse_hook()
@@ -148,6 +169,13 @@ class SmoothDictationApp(DictationApp):
             rect = (screen or application.primaryScreen()).availableGeometry()
             return rect.left(), rect.top(), rect.x()+rect.width(), rect.y()+rect.height()
         return super().work_area()
+
+    def right_click(self):
+        if self.recording or self.processing:
+            self.cancel_recording()
+        else:
+            # A right click also dismisses a completed note, without deleting it.
+            self.collapse()
 
     def place_widget(self):
         if self.expanded:
@@ -197,8 +225,12 @@ class SmoothDictationApp(DictationApp):
     def drain_events(self):
         try:
             while True:
-                kind,payload = self.events.get_nowait()
+                event = self.events.get_nowait()
+                kind,payload = event[:2]
+                if len(event) == 3 and (event[2] is not self.session or event[2].cancelled.is_set()):
+                    continue
                 if kind == 'level': self.wave_target = float(payload)
+                elif kind == 'cancel': self.cancel_recording(payload)
                 elif kind == 'toggle': self.toggle()
                 elif kind == 'final': self.finish(str(payload))
                 elif kind == 'transcript': self.finish_transcript(payload)
@@ -276,11 +308,15 @@ class SmoothDictationApp(DictationApp):
         p.end()
 
     def quit_app(self):
+        if self.session:
+            self.session.cancelled.set()
+            self.session.audio_queue.put(None)
         self.cleaner.close()
         if self.input_stream:
             self.recording=False
             self.input_stream.stop();self.input_stream.close()
         self.hotkeys.stop()
+        self.tray.hide()
         import ctypes
         if self.mouse_hook: ctypes.windll.user32.UnhookWindowsHookEx(self.mouse_hook)
         if self.mouse_hook_thread_id: ctypes.windll.user32.PostThreadMessageW(self.mouse_hook_thread_id,0x0012,0,0)

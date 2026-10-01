@@ -72,6 +72,15 @@ HOTKEY = "<ctrl>+<alt>+<space>"
 _INSTANCE_MUTEX = None
 
 
+class RecordingSession:
+    """Own the audio and cancellation state of exactly one recording."""
+    def __init__(self, audio_queue, smart_cleanup, terminology):
+        self.audio_queue = audio_queue
+        self.smart_cleanup = smart_cleanup
+        self.terminology = terminology
+        self.cancelled = threading.Event()
+
+
 def build_recognizers() -> tuple[
     sherpa_onnx.OnlineRecognizer,
     sherpa_onnx.OfflineRecognizer,
@@ -287,6 +296,9 @@ class DictationApp:
         self.recording = True
         self.root.title("本地语音输入 - 录音中")
         self.audio_queue = queue.Queue()
+        session = RecordingSession(self.audio_queue, self.smart_cleanup_for_recording,
+                                   self.terminology_for_recording)
+        self.session = session
         self.show_waveform()
         try:
             self.input_stream = sd.InputStream(
@@ -301,7 +313,33 @@ class DictationApp:
             self.recording = False
             self.show_text(f"无法打开麦克风：{exc}")
             return
-        threading.Thread(target=self.recognition_worker, daemon=True).start()
+        threading.Thread(target=self.recognition_worker, args=(session,), daemon=True).start()
+
+    def request_cancel(self):
+        session = getattr(self, "session", None)
+        if session is None or not (self.recording or self.processing):
+            return False
+        # Invalidate pending results before the UI drains them.
+        session.cancelled.set()
+        self.events.put(("cancel", session))
+        return True
+
+    def cancel_recording(self, session=None):
+        current = getattr(self, "session", None)
+        if current is None or (session is not None and session is not current):
+            return
+        if not (self.recording or self.processing):
+            return
+        current.cancelled.set()
+        self.recording = self.processing = False
+        if self.input_stream is not None:
+            self.input_stream.stop()
+            self.input_stream.close()
+            self.input_stream = None
+        current.audio_queue.put(None)
+        self.wave_target = self.wave_level = 0.0
+        self.root.title("本地语音输入 - 已取消")
+        self.collapse()
 
 
     def stop_recording(self) -> None:
@@ -325,13 +363,33 @@ class DictationApp:
             self.events.put(("level", min(1.0, rms * 18.0)))
 
 
-    def recognition_worker(self) -> None:
+    def recognition_worker(self, session=None) -> None:
+        if session is None:
+            self._recognize_session(None)
+            return
+        # ONNX/VAD/cleanup objects are shared. A cancelled native call can finish
+        # in the background, but must not run concurrently with the next round.
+        with self.recognition_lock:
+            if not session.cancelled.is_set():
+                self._recognize_session(session)
+
+    def _recognize_session(self, session) -> None:
+        audio_queue = session.audio_queue if session else self.audio_queue
+        smart_cleanup = session.smart_cleanup if session else self.smart_cleanup_for_recording
+        terminology = session.terminology if session else self.terminology_for_recording
+        def cancelled():
+            return session is not None and session.cancelled.is_set()
+        def emit(kind, payload):
+            if not cancelled():
+                self.events.put((kind, payload, session) if session else (kind, payload))
         stream = self.online.create_stream()
         chunks: list[np.ndarray] = []
         last_partial = ""
         try:
             while True:
-                chunk = self.audio_queue.get()
+                chunk = audio_queue.get()
+                if cancelled():
+                    return
                 if chunk is None:
                     break
                 chunks.append(chunk)
@@ -343,20 +401,24 @@ class DictationApp:
                     last_partial = partial
 
             if not chunks:
-                self.events.put(("final", ""))
+                emit("final", "")
                 return
 
             samples = np.concatenate(chunks)
             if len(samples) < SAMPLE_RATE // 4:
-                self.events.put(("final", ""))
+                emit("final", "")
                 return
             samples = self.speech_gate.speech_audio(samples)
+            if cancelled():
+                return
             if not len(samples):
-                self.events.put(("final", ""))
+                emit("final", "")
                 return
             second_pass = self.offline.create_stream()
             second_pass.accept_waveform(SAMPLE_RATE, samples)
             self.offline.decode_stream(second_pass)
+            if cancelled():
+                return
             final_text = second_pass.result.text.strip()
             if final_text:
                 final_text = self.punctuation.add_punctuation(final_text).strip()
@@ -364,17 +426,19 @@ class DictationApp:
             # Never fall back to it when the final recognizer returns empty.
             raw_text = final_text
             if not raw_text:
-                self.events.put(("final", ""))
+                emit("final", "")
                 return
-            corrected = correct_terms(raw_text) if self.terminology_for_recording else raw_text
+            corrected = correct_terms(raw_text) if terminology else raw_text
             term_status = "；已修正术语" if corrected != raw_text else ""
-            if self.smart_cleanup_for_recording and raw_text:
+            if cancelled():
+                return
+            if smart_cleanup and raw_text:
                 cleaned = self.cleaner.clean(corrected)
-                self.events.put(("transcript", (raw_text, cleaned.text, cleaned.status + term_status)))
+                emit("transcript", (raw_text, cleaned.text, cleaned.status + term_status))
             else:
-                self.events.put(("transcript", (raw_text, corrected, "未开启整理" + term_status)))
+                emit("transcript", (raw_text, corrected, "未开启整理" + term_status))
         except Exception as exc:
-            self.events.put(("error", str(exc)))
+            emit("error", str(exc))
 
 
     def show_waveform(self) -> None:
