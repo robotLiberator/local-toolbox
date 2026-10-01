@@ -5,14 +5,15 @@ import time
 from types import SimpleNamespace
 
 import pyperclip
-from PySide6.QtCore import QPoint, QPointF, QRectF, Qt, QTimer, Signal
-from PySide6.QtGui import QColor, QFont, QPainter, QPainterPath, QPen
+from PySide6.QtCore import QPoint, QPointF, QRectF, Qt, QTimer, Signal, QUrl
+from PySide6.QtGui import QColor, QFont, QPainter, QPainterPath, QPen, QDesktopServices
 from PySide6.QtWidgets import QApplication, QMenu, QPlainTextEdit, QWidget
 
 from app import DictationApp, HOTKEY, ROOT, build_recognizers, keyboard
 from local_cleanup import LocalCleaner, load_enabled
 from speech_gate import SpeechGate
 from paths import user_file, VERSION
+import terminology
 
 
 class Surface(QWidget):
@@ -87,6 +88,8 @@ class SmoothDictationApp(DictationApp):
         self.cleanup_stutters = Flag()
         self.smart_cleanup = Flag()
         self.smart_cleanup.value = load_enabled()
+        self.terminology_enabled = Flag()
+        self.terminology_enabled.value = terminology.load_enabled()
         self.cleaner = LocalCleaner()
         self.bubble_x, self.bubble_y = self.load_position()
         self.online, self.offline, self.punctuation = build_recognizers()
@@ -114,6 +117,14 @@ class SmoothDictationApp(DictationApp):
             self.smart_cleanup.value = value
             self.cleanup_changed()
         smart_action.toggled.connect(change_cleanup)
+        terms_action = self.menu.addAction('计算机／AI 术语纠错（本地）')
+        terms_action.setCheckable(True)
+        terms_action.setChecked(self.terminology_enabled.get())
+        def change_terms(value):
+            self.terminology_enabled.value = value
+            terminology.save_enabled(value)
+        terms_action.toggled.connect(change_terms)
+        self.menu.addAction('编辑个人术语词表', lambda: QDesktopServices.openUrl(QUrl.fromLocalFile(str(terminology.dictionary_file()))))
         self.menu.addAction('查看识别原文', self.show_raw_result)
         self.menu.addSeparator()
         self.menu.addAction('本地语音输入 ' + VERSION).setEnabled(False)

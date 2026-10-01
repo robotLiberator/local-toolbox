@@ -7,3 +7,4 @@
 **/runtime/
 **/qa/*.json
 *.zip
+**/staging/

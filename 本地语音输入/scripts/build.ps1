@@ -1,13 +1,14 @@
 ﻿param([string]$Python = 'python')
 $ErrorActionPreference = 'Stop'
+$distPath = 'staging'
 $productRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 Push-Location $productRoot
 try {
     & $Python 'scripts\make_icon.py'
     if ($LASTEXITCODE -ne 0) { throw '图标生成失败' }
-    & $Python -m PyInstaller --noconfirm --clean --workpath '.build' --distpath 'dist' 'product.spec'
+    & $Python -m PyInstaller --noconfirm --clean --workpath '.build' --distpath $distPath 'product.spec'
     if ($LASTEXITCODE -ne 0) { throw '应用构建失败' }
-    $release = Join-Path $productRoot 'dist\本地语音输入'
+    $release = Join-Path (Join-Path $productRoot $distPath) '本地语音输入'
     Copy-Item -LiteralPath (Join-Path $productRoot 'models') -Destination $release -Recurse -Force
     $engine = Join-Path $release 'runtime\llama'
     New-Item -ItemType Directory -Path $engine -Force | Out-Null
@@ -16,7 +17,7 @@ try {
         $_.Name -eq 'llama-server.exe' -or $_.Name -match '^(ggml.*\.dll|llama(?:-common|-server-impl)?\.dll|mtmd\.dll|libomp\.dll|LICENSE.*)$'
     }
     foreach ($file in $files) { Copy-Item -LiteralPath $file.FullName -Destination $engine -Force }
-    foreach ($name in @('cleanup_prompt.txt','cleanup_sources.json','README.md','THIRD_PARTY_NOTICES.md','LICENSE')) {
+    foreach ($name in @('cleanup_prompt.txt','cleanup_sources.json','terminology.json','README.md','THIRD_PARTY_NOTICES.md','LICENSE')) {
         Copy-Item -LiteralPath (Join-Path $productRoot $name) -Destination $release -Force
     }
     Copy-Item -LiteralPath (Join-Path $productRoot 'scripts\自检.ps1') -Destination $release -Force

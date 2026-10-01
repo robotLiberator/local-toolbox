@@ -1,0 +1,126 @@
+"""Back up this toolbox privately using the user's existing Git credentials.
+
+No credentials are written to disk or printed. Release assets are streamed.
+"""
+import argparse
+import hashlib
+import http.client
+import json
+from pathlib import Path
+import subprocess
+import urllib.error
+import urllib.parse
+import urllib.request
+
+OWNER = 'robotLiberator'
+REPOSITORY = 'local-toolbox'
+API = 'https://api.github.com'
+
+
+def credentials():
+    result = subprocess.run(['git', 'credential', 'fill'], input='protocol=https\nhost=github.com\nusername=' + OWNER + '\n\n',
+                            text=True, capture_output=True, check=True)
+    values = dict(line.split('=', 1) for line in result.stdout.splitlines() if '=' in line)
+    return values['password']
+
+
+def request(token, route, data=None, method=None):
+    payload = None if data is None else json.dumps(data).encode()
+    req = urllib.request.Request(API + route, data=payload, method=method,
+        headers={'Authorization':'Bearer ' + token, 'Accept':'application/vnd.github+json',
+                 'X-GitHub-Api-Version':'2022-11-28', 'User-Agent':'Local-Toolbox-Backup', 'Content-Type':'application/json'})
+    with urllib.request.urlopen(req, timeout=60) as response:
+        return json.load(response)
+
+
+def prepare(token):
+    user = request(token, '/user')
+    if user['login'].lower() != OWNER.lower():
+        raise RuntimeError('Authenticated account differs from expected owner')
+    route = '/repos/' + OWNER + '/' + REPOSITORY
+    try:
+        repo = request(token, route)
+    except urllib.error.HTTPError as exc:
+        if exc.code != 404:
+            raise
+        repo = request(token, '/user/repos', {'name':REPOSITORY, 'private':True,
+            'description':'个人工具箱：独立本地应用、源码和离线产品备份', 'auto_init':False})
+    if not repo['private']:
+        raise RuntimeError('Existing repository is not private; refusing backup')
+    print(json.dumps({'repository':repo['html_url'], 'private':repo['private']}, ensure_ascii=False), flush=True)
+
+
+def upload(token, upload_url, path):
+    parsed = urllib.parse.urlsplit(upload_url.split('{', 1)[0] + '?name=' + urllib.parse.quote(path.name))
+    if parsed.hostname != 'uploads.github.com':
+        raise RuntimeError('Unexpected upload host')
+    connection = http.client.HTTPSConnection(parsed.hostname, timeout=300)
+    try:
+        connection.putrequest('POST', parsed.path + '?' + parsed.query)
+        for key, value in {'Authorization':'Bearer ' + token, 'User-Agent':'Local-Toolbox-Backup',
+                'Content-Type':'application/zip', 'Content-Length':str(path.stat().st_size),
+                'Accept':'application/vnd.github+json'}.items():
+            connection.putheader(key, value)
+        connection.endheaders()
+        count = 0
+        digest = hashlib.sha256()
+        with path.open('rb') as stream:
+            while chunk := stream.read(8 * 1024 * 1024):
+                connection.send(chunk)
+                digest.update(chunk)
+                count += len(chunk)
+                if count // (128 * 1024 * 1024) != (count-len(chunk)) // (128 * 1024 * 1024):
+                    print(f'Uploaded {count//1024//1024} MiB: {path.name}', flush=True)
+        response = connection.getresponse()
+        data = json.loads(response.read())
+        if response.status != 201 or data.get('state') != 'uploaded' or data.get('size') != count:
+            raise RuntimeError(f'Asset upload failed: HTTP {response.status}')
+        if data.get('digest') and data['digest'] != 'sha256:' + digest.hexdigest():
+            raise RuntimeError('Remote asset digest mismatch')
+        print(json.dumps({'asset':data['name'], 'bytes':count, 'sha256':digest.hexdigest(),
+                          'url':data['browser_download_url']}, ensure_ascii=False), flush=True)
+    finally:
+        connection.close()
+
+
+def release(token, tag, files):
+    route = '/repos/' + OWNER + '/' + REPOSITORY + '/releases'
+    try:
+        result = request(token, route + '/tags/' + tag)
+    except urllib.error.HTTPError as exc:
+        if exc.code != 404:
+            raise
+        result = request(token, route, {'tag_name':tag, 'target_commitish':'main',
+            'name':'本地语音输入 ' + tag, 'body':'完整 Windows x64 离线包及源码备份。请解压整个应用目录，不要只复制 exe。',
+            'draft':False, 'prerelease':False})
+    assets = request(token, route + '/' + str(result['id']) + '/assets')
+    for filename in files:
+        path = Path(filename).resolve(strict=True)
+        existing = next((a for a in assets if a['name'] == path.name), None)
+        if existing:
+            with path.open('rb') as stream:
+                digest = 'sha256:' + hashlib.file_digest(stream, 'sha256').hexdigest()
+            if existing.get('digest') != digest or existing['size'] != path.stat().st_size:
+                raise RuntimeError('Existing asset differs; refusing overwrite')
+            print('Verified existing asset: ' + path.name, flush=True)
+        else:
+            upload(token, result['upload_url'], path)
+    print(json.dumps({'release':result['html_url']}, ensure_ascii=False), flush=True)
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('action', choices=['prepare','release'])
+    parser.add_argument('--tag', default='bubble-dictation-v1.0.1')
+    parser.add_argument('files', nargs='*')
+    args = parser.parse_args()
+    try:
+        token = credentials()
+        if args.action == 'prepare':
+            prepare(token)
+        else:
+            release(token, args.tag, args.files)
+    except Exception as exc:
+        # Do not print response bodies, credentials, request objects or tracebacks.
+        print('Backup failed: ' + type(exc).__name__ + (' HTTP ' + str(exc.code) if isinstance(exc, urllib.error.HTTPError) else ''), flush=True)
+        raise SystemExit(1)

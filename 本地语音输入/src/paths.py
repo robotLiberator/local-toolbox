@@ -5,7 +5,7 @@ import sys
 
 APP_ROOT = Path(sys.executable).resolve().parent if getattr(sys, 'frozen', False) else Path(__file__).resolve().parent.parent
 USER_DATA = Path(os.environ.get('LOCALAPPDATA', str(Path.home()))) / 'BubbleDictation'
-VERSION = '1.0.0'
+VERSION = '1.0.1'
 
 
 def user_file(name):

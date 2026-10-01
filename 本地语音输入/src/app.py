@@ -47,6 +47,7 @@ from text_cleanup import clean_stutters
 
 
 from local_cleanup import save_enabled
+from terminology import correct_terms
 
 
 
@@ -280,6 +281,7 @@ class DictationApp:
 
     def start_recording(self) -> None:
         self.smart_cleanup_for_recording = self.smart_cleanup.get()
+        self.terminology_for_recording = self.terminology_enabled.get()
         self.target_window = self.last_external_window
         self.collapse()
         self.recording = True
@@ -364,11 +366,13 @@ class DictationApp:
             if not raw_text:
                 self.events.put(("final", ""))
                 return
+            corrected = correct_terms(raw_text) if self.terminology_for_recording else raw_text
+            term_status = "；已修正术语" if corrected != raw_text else ""
             if self.smart_cleanup_for_recording and raw_text:
-                cleaned = self.cleaner.clean(raw_text)
-                self.events.put(("transcript", (raw_text, cleaned.text, cleaned.status)))
+                cleaned = self.cleaner.clean(corrected)
+                self.events.put(("transcript", (raw_text, cleaned.text, cleaned.status + term_status)))
             else:
-                self.events.put(("transcript", (raw_text, raw_text, "未开启整理")))
+                self.events.put(("transcript", (raw_text, corrected, "未开启整理" + term_status)))
         except Exception as exc:
             self.events.put(("error", str(exc)))
 

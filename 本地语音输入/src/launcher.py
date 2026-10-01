@@ -17,9 +17,12 @@ def self_test(report):
     from app import self_test as test_asr, read_wav, OFFLINE
     from speech_gate import SpeechGate, RATE
     from local_cleanup import LocalCleaner
+    from terminology import correct_terms
     import numpy as np
 
     checks = {}
+    checks['terminology_repair'] = correct_terms('把源码上传到 get up，调用 a p i。') == '把源码上传到 GitHub，调用 API。'
+    checks['ordinary_english_preserved'] = all(correct_terms(text) == text for text in ('I get up at 8.', '上传代码。I get up at 8.', '模型例句是 I get up at 8.'))
     output = io.StringIO()
     with contextlib.redirect_stdout(output):
         checks['recognition'] = test_asr() == 0

@@ -1,0 +1,29 @@
+{
+  "technical_context": ["上传", "下载", "仓库", "源码", "代码", "开源", "项目", "提交", "分支", "克隆", "部署", "编程", "软件", "插件", "模型", "接口", "调用", "显卡", "推理", "训练", "服务器", "开发", "人工智能", "工具箱"],
+  "terms": [
+    {"canonical": "GitHub", "aliases": ["github", "git hub", "git-hub", "g i t h u b"], "context_aliases": ["get up", "getup", "get hub", "gethub", "git up", "get app", "吉特哈布"]},
+    {"canonical": "GitLab", "aliases": ["gitlab", "git lab", "git-lab"], "context_aliases": ["git lap"]},
+    {"canonical": "AI", "aliases": ["ai", "a i", "a.i." ]},
+    {"canonical": "API", "aliases": ["api", "a p i", "a.p.i."]},
+    {"canonical": "GPT", "aliases": ["gpt", "g p t", "g.p.t."]},
+    {"canonical": "LLM", "aliases": ["llm", "l l m"]},
+    {"canonical": "GPU", "aliases": ["gpu", "g p u"]},
+    {"canonical": "CPU", "aliases": ["cpu", "c p u"]},
+    {"canonical": "SDK", "aliases": ["sdk", "s d k"]},
+    {"canonical": "JSON", "aliases": ["json", "j s o n"]},
+    {"canonical": "ONNX", "aliases": ["onnx", "o n n x"]},
+    {"canonical": "ChatGPT", "aliases": ["chatgpt", "chat gpt", "chat g p t"]},
+    {"canonical": "Codex", "aliases": ["codex", "code x", "code-x"], "context_aliases": ["扣得克斯"]},
+    {"canonical": "Python", "aliases": ["python", "py thon"], "context_aliases": ["派森"]},
+    {"canonical": "PyTorch", "aliases": ["pytorch", "py torch"]},
+    {"canonical": "Hugging Face", "aliases": ["huggingface", "hugging face", "hugging-face"]},
+    {"canonical": "VS Code", "aliases": ["vscode", "vs code", "v s code"]},
+    {"canonical": "Docker", "aliases": ["docker"]},
+    {"canonical": "CUDA", "aliases": ["cuda", "c u d a"]},
+    {"canonical": "Whisper", "aliases": ["whisper"]},
+    {"canonical": "Wispr Flow", "aliases": ["wispr flow"], "context_aliases": ["whisper flow"]},
+    {"canonical": "sherpa-onnx", "aliases": ["sherpa onnx", "sherpa-onnx"]},
+    {"canonical": "llama.cpp", "aliases": ["llama.cpp", "llama cpp"]},
+    {"canonical": "Qwen", "aliases": ["qwen"]}
+  ]
+}

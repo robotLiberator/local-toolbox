@@ -5,19 +5,20 @@
     {
       "id": "bubble-dictation",
       "name": "本地语音输入",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "status": "ready",
       "platform": "Windows 10/11 x64",
       "launch": "本地语音输入/dist/本地语音输入/本地语音输入.exe",
       "source": "本地语音输入/src",
       "documentation": "本地语音输入/README.md",
-      "tags": ["离线", "语音转文字", "中英混说", "口吃去重", "口语整理", "静音保护", "鼠标侧键", "小球"],
+      "tags": ["离线", "语音转文字", "中英混说", "口吃去重", "口语整理", "静音保护", "鼠标侧键", "小球", "GitHub", "AI术语纠错"],
       "network_required": false,
       "gpu_required": false,
       "release_bytes": 1140540300,
-      "verification": ["11 regression tests", "standalone exe ASR/VAD/cleanup self-test", "Qt UI and XButton2 hook startup", "local cleanup engine health"],
-      "local_backup": "E:/创世纪/本地产品备份/本地语音输入-v1.0.0-20261001",
-      "backup_destination": "awaiting-user-confirmation"
+      "verification": ["18 regression tests", "standalone exe ASR/VAD/cleanup self-test", "Qt UI and XButton2 hook startup", "local cleanup engine health"],
+      "local_backup": "E:/创世纪/本地产品备份/本地语音输入-v1.0.1-20261001",
+      "backup_destination": "https://github.com/robotLiberator/local-toolbox",
+      "backup_status": "pending-upload-verification"
     }
   ]
 }
