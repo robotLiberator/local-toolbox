@@ -16,14 +16,15 @@
       "gpu_required": false,
       "one_click_launch": true,
       "local_service": {"required": true, "conditional": true, "required_for": "智能口语整理", "type": "llama.cpp loopback HTTP", "bind": "127.0.0.1 dynamic port", "compliance": "legacy-pending-migration"},
-      "release_bytes": 1140551574,
+      "release_bytes": 1140551638,
       "verification": ["29 regression tests including cancellation and stale-result protection", "standalone exe ASR/VAD/cleanup/terminology self-test", "Qt UI and XButton2 hook startup", "local cleanup engine health"],
-      "local_backup": "E:/创世纪/本地产品备份/本地语音输入-v1.0.1-20261001",
+      "local_backup": "E:/创世纪/本地产品备份/本地语音输入-v1.0.2-20261001",
       "backup_destination": "https://github.com/robotLiberator/local-toolbox",
-      "backup_status": "previous-version-verified",
-      "backup_version": "1.0.1",
-      "github_release": "https://github.com/robotLiberator/local-toolbox/releases/tag/bubble-dictation-v1.0.1",
-      "release_archive_sha256": "330be013ae5d3862e92dab8ec573562ebe03920060dcea6f7bf4a31231eb6fb6"
+      "backup_status": "verified",
+      "backup_version": "1.0.2",
+      "backup_retention": "current-version-only",
+      "github_release": "https://github.com/robotLiberator/local-toolbox/releases/tag/bubble-dictation-v1.0.2",
+      "release_archive_sha256": "48ad8be1f574618c8d239cc1bc203f4a57adf85b0053ed2059dc0f24585604bf"
     },
     {
       "id": "multi-platform-publisher",
