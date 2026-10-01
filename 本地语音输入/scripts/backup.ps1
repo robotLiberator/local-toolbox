@@ -1,4 +1,4 @@
-﻿param([Parameter(Mandatory=$true)][string]$Destination)
+﻿param([Parameter(Mandatory=$true)][string]$Destination, [switch]$RefreshSource)
 $ErrorActionPreference = 'Stop'
 $productRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $toolboxRoot = (Resolve-Path (Join-Path $productRoot '..')).Path
@@ -8,8 +8,14 @@ New-Item -ItemType Directory -Path $Destination -Force | Out-Null
 $backupRoot = (Resolve-Path -LiteralPath $Destination).Path
 $releaseZip = Join-Path $backupRoot "本地语音输入-Windows-x64-v$version.zip"
 $sourceZip = Join-Path $backupRoot "工具箱-源码-v$version.zip"
-if ((Test-Path -LiteralPath $releaseZip) -or (Test-Path -LiteralPath $sourceZip)) { throw '目标已有备份，请选择新的备份文件夹，避免覆盖。' }
-Compress-Archive -LiteralPath $release -DestinationPath $releaseZip -CompressionLevel Fastest
+if ($RefreshSource) {
+    $previous = Get-Content -LiteralPath (Join-Path $backupRoot '校验清单.json') -Raw | ConvertFrom-Json
+    $expectedRelease = @($previous.archives | Where-Object {$_.name -eq (Split-Path $releaseZip -Leaf)})
+    if ($previous.version -ne $version -or $expectedRelease.Count -ne 1 -or (Get-FileHash -LiteralPath $releaseZip -Algorithm SHA256).Hash.ToLowerInvariant() -ne $expectedRelease[0].sha256) { throw '完整离线包与原校验不符，禁止刷新源码备份。' }
+} else {
+    if ((Test-Path -LiteralPath $releaseZip) -or (Test-Path -LiteralPath $sourceZip)) { throw '目标已有备份，请选择新的备份文件夹，避免覆盖。' }
+    Compress-Archive -LiteralPath $release -DestinationPath $releaseZip -CompressionLevel Fastest
+}
 & git -C $toolboxRoot archive --format=zip ('--output=' + $sourceZip) HEAD
 if ($LASTEXITCODE -ne 0) { throw '源码归档失败' }
 Add-Type -AssemblyName System.IO.Compression.FileSystem
