@@ -51,7 +51,7 @@ def prepare(token):
 
 
 def upload(token, upload_url, path):
-    parsed = urllib.parse.urlsplit(upload_url.split('{', 1)[0] + '?name=' + urllib.parse.quote(path.name))
+    parsed = urllib.parse.urlsplit(upload_url.split('{', 1)[0] + '?name=' + urllib.parse.quote(asset_name(path)))
     if parsed.hostname != 'uploads.github.com':
         raise RuntimeError('Unexpected upload host')
     connection = http.client.HTTPSConnection(parsed.hostname, timeout=300)
@@ -96,7 +96,7 @@ def release(token, tag, files):
     assets = request(token, route + '/' + str(result['id']) + '/assets')
     for filename in files:
         path = Path(filename).resolve(strict=True)
-        existing = next((a for a in assets if a['name'] == path.name), None)
+        existing = next((a for a in assets if a['name'] == asset_name(path)), None)
         if existing:
             with path.open('rb') as stream:
                 digest = 'sha256:' + hashlib.file_digest(stream, 'sha256').hexdigest()
@@ -108,9 +108,39 @@ def release(token, tag, files):
     print(json.dumps({'release':result['html_url']}, ensure_ascii=False), flush=True)
 
 
+def asset_name(path):
+    # GitHub sanitizes Unicode asset filenames; keep a predictable download name.
+    if 'Windows-x64' in path.name:
+        return 'bubble-dictation-windows-x64-v1.0.1.zip'
+    if '源码' in path.name:
+        return 'local-toolbox-source-v1.0.1.zip'
+    if not path.name.isascii():
+        raise RuntimeError('Asset name must be ASCII')
+    return path.name
+
+
+def verify(token, tag, files):
+    route = '/repos/' + OWNER + '/' + REPOSITORY + '/releases'
+    result = request(token, route + '/tags/' + tag)
+    assets = request(token, route + '/' + str(result['id']) + '/assets')
+    for filename in files:
+        path = Path(filename).resolve(strict=True)
+        with path.open('rb') as stream:
+            digest = 'sha256:' + hashlib.file_digest(stream, 'sha256').hexdigest()
+        matches = [a for a in assets if a.get('digest') == digest and a['size'] == path.stat().st_size and a['state'] == 'uploaded']
+        if len(matches) != 1:
+            raise RuntimeError('Remote checksum or asset count mismatch')
+        asset = matches[0]
+        if asset['name'] != asset_name(path):
+            asset = request(token, route + '/assets/' + str(asset['id']),
+                            {'name':asset_name(path), 'label':path.name}, method='PATCH')
+        print(json.dumps({'verified':True, 'name':asset['name'], 'bytes':asset['size'],
+                          'digest':asset['digest'], 'url':asset['browser_download_url']}, ensure_ascii=False), flush=True)
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('action', choices=['prepare','release'])
+    parser.add_argument('action', choices=['prepare','release','verify'])
     parser.add_argument('--tag', default='bubble-dictation-v1.0.1')
     parser.add_argument('files', nargs='*')
     args = parser.parse_args()
@@ -118,8 +148,10 @@ if __name__ == '__main__':
         token = credentials()
         if args.action == 'prepare':
             prepare(token)
-        else:
+        elif args.action == 'release':
             release(token, args.tag, args.files)
+        else:
+            verify(token, args.tag, args.files)
     except Exception as exc:
         # Do not print response bodies, credentials, request objects or tracebacks.
         print('Backup failed: ' + type(exc).__name__ + (' HTTP ' + str(exc.code) if isinstance(exc, urllib.error.HTTPError) else ''), flush=True)
