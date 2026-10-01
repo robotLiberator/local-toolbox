@@ -32,5 +32,7 @@
     "launcher PE header present; existing compiled launcher retained"
   ],
   "real_platform_publishing_tested": false,
-  "backup_status": "pending-upload"
+  "backup_status": "verified",
+  "github_release": "https://github.com/robotLiberator/local-toolbox/releases/tag/multi-platform-publisher-2026.10.01",
+  "release_archive_sha256": "baee32b06a1ec3d831780b394038d2a7009c0895c57e4878263fd025ec2e1c48"
 }

@@ -21,4 +21,6 @@
 
 原工程：`E:/创世纪/auto-upload`。原仓库引用为 `https://github.com/s840207702/auto-upload`，上游与许可证说明保留在 `source/NOTICE`、`source/LICENSE`。功能和使用说明见 `source/README.md`；原文中的账号后台截图不随工具箱源码复制。
 
+GitHub 私有备份：[完整一键包与源码快照](https://github.com/robotLiberator/local-toolbox/releases/tag/multi-platform-publisher-2026.10.01)。完整包约 464 MB，本地归档位于 `E:/创世纪/本地产品备份/多平台分发-2026.10.01`，远端文件大小和 SHA256 已核对。
+
 测试只能确认程序逻辑、合成页面和启动链路；各平台页面会变化，不将本次归档宣称为全部平台真实发布验证。
